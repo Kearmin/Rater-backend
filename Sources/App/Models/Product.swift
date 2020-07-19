@@ -35,8 +35,32 @@ final class Product: Model, Content {
     @Timestamp(key: "createdAt", on: .create, format: .unix)
     var createdAt: Date?
     
+    @Children(for: \.$product)
+    var ratings: [Rating]
+    
     init() {
         
     }
+}
+
+extension Product {
+    struct Migration: Fluent.Migration {
+        var name: String { "CreateProduct" }
+        
+        func prepare(on database: Database) -> EventLoopFuture<Void> {
+            database.schema("product")
+                .field("id", .int, .identifier(auto: true))
+                .field("name", .string, .required)
+                .field("imageUrl", .string)
+                .field("description", .string, .required)
+                .field("producer", .string, .required)
+                .field("uploaderId", .int, .required)
+                .field("createdAt", .int, .required)
+                .create()
+        }
     
+        func revert(on database: Database) -> EventLoopFuture<Void> {
+            database.schema("product").delete()
+        }
+    }
 }

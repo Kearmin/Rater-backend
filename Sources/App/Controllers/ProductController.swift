@@ -27,9 +27,12 @@ struct ProductController: RouteCollection {
         routes.group("product") { router in
          
             router.get(":id", use: getProduct)
-            router.post(use: createProduct)
-            router.put(":id", use: updateProduct)
-            router.delete(":id", use: deleteProduct)
+            
+            let tokenProtected = router.grouped(UserToken.authenticator())
+    
+            tokenProtected.post(use: createProduct)
+            tokenProtected.put(":id", use: updateProduct)
+            tokenProtected.delete(":id", use: deleteProduct)
         }
     }
     
@@ -41,14 +44,24 @@ struct ProductController: RouteCollection {
             throw Abort(.badRequest)
         }
         
-        return Product.query(on: req.db)
+        let productFuture = Product.query(on: req.db)
             .filter(\.$id == id)
             .first()
             .unwrap(or: Abort(.notFound))
-            .encodeResponse(for: req)
+
+        return productFuture.flatMap { product -> EventLoopFuture<Response> in
+
+            let ratings = product.$ratings.get(on: req.db)
+            
+            return productFuture.and(ratings).flatMap { (product, ratings) -> EventLoopFuture<Response> in
+                return product.encodeResponse(for: req)
+            }
+        }
     }
     
     func createProduct(_ req: Request) throws -> EventLoopFuture<Response> {
+        
+        _ = try req.auth.require(User.self)
         
         guard let content = try? req.content.decode(CreateProduct.self) else {
             throw Abort(.badRequest)
@@ -68,6 +81,8 @@ struct ProductController: RouteCollection {
     
     func updateProduct(_ req: Request) throws -> EventLoopFuture<Response> {
         
+        _ = try req.auth.require(User.self)
+        
         guard let content = try? req.content.decode(CreateProduct.self) else {
             throw Abort(.badRequest)
         }
@@ -86,6 +101,8 @@ struct ProductController: RouteCollection {
     }
     
     func deleteProduct(_ req: Request) throws -> EventLoopFuture<Response> {
+        
+        _ = try req.auth.require(User.self)
         
         let product = Product.find(req.parameters.get("id"), on: req.db)
         return product.unwrap(or: Abort(.notFound)).flatMap { (product) -> EventLoopFuture<Response> in

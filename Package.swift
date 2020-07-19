@@ -4,13 +4,13 @@ import PackageDescription
 let package = Package(
     name: "RaterBackend",
     platforms: [
-       .macOS(.v10_15)
+        .macOS(.v10_15)
     ],
     dependencies: [
         // 💧 A server-side Swift web framework.
         .package(url: "https://github.com/vapor/vapor.git", from: "4.0.0"),
         .package(url: "https://github.com/vapor/fluent.git", from: "4.0.0"),
-        .package(url: "https://github.com/vapor/fluent-mysql-driver.git", from: "4.0.0-beta")
+        .package(url: "https://github.com/vapor/fluent-mysql-driver.git", from: "4.0.0-beta"),
     ],
     targets: [
         .target(
@@ -18,7 +18,7 @@ let package = Package(
             dependencies: [
                 .product(name: "Vapor", package: "vapor"),
                 .product(name: "Fluent", package: "fluent"),
-                .product(name: "FluentMySQLDriver", package: "fluent-mysql-driver")
+                .product(name: "FluentMySQLDriver", package: "fluent-mysql-driver"),
             ],
             swiftSettings: [
                 // Enable better optimizations when building in Release configuration. Despite the use of

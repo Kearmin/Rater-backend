@@ -14,6 +14,7 @@ func routes(_ app: Application) throws {
         
     try app.register(collection: ProductController())
     try app.register(collection: RatingController())
+    try app.register(collection: UserController())
     
     app.group("pages") { pages in
         
@@ -42,32 +43,4 @@ func routes(_ app: Application) throws {
             }
         }
     }
-    
-    app.group("user") { user in
-        
-        user.post("signUp") { req -> String in
-            return "signup"
-        }
-        
-        user.post("login") { req -> String in
-            return "login"
-        }
-        
-        user.get(":id") { req -> String in
-            return "get user"
-        }
-        
-        user.post { req -> String in
-            return "Create user"
-        }
-        
-        user.put(":id") { req -> String in
-            return "update user"
-        }
-        
-        user.delete(":id") { req -> String in
-            return "delete user"
-        }
-    }
-    
 }

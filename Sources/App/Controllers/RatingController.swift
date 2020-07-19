@@ -16,9 +16,11 @@ struct RatingController: RouteCollection {
         
         routes.group("rating") { router in
             router.get(":id", use: getRating)
-            router.post(use: createRating)
-            router.put(":id", use: updateRating)
-            router.delete(":id", use: deleteRating)
+            
+            let tokenProtected = router.grouped(UserToken.authenticator())
+            tokenProtected.post(use: createRating)
+            tokenProtected.put(":id", use: updateRating)
+            tokenProtected.delete(":id", use: deleteRating)
         }
     }
     
@@ -48,21 +50,32 @@ struct RatingController: RouteCollection {
     
     func createRating(_ req: Request) throws -> EventLoopFuture<Response> {
     
+        _ = try req.auth.require(User.self)
+        
         let content = try req.content.decode(CreateRating.self)
 
         let rating = Rating.init()
         rating.rating = content.rating
         rating.title = content.title
         rating.text = content.text
-        rating.productId = content.productId
-        rating.uploaderId = content.uploaderId
+        //rating.productId = content.productId
+        //rating.uploaderId = content.uploaderId
         
-        return rating.create(on: req.db).flatMap { (_) -> EventLoopFuture<Response> in
-            return rating.encodeResponse(for: req)
+        let productFuture =  Product.query(on: req.db).filter(\.$id == content.productId).first().unwrap(or: Abort(.badRequest))
+        let userFuture = User.query(on: req.db).filter(\.$id == content.uploaderId).first().unwrap(or: Abort(.badRequest))
+        
+        return productFuture.and(userFuture).flatMap { product, user -> EventLoopFuture<Response> in
+            
+            rating.$user.id = user.id!
+            return product.$ratings.create(rating, on: req.db).map{
+                rating
+            }.encodeResponse(for: req)
         }
     }
     
     func updateRating(_ req: Request) throws -> EventLoopFuture<Response> {
+        
+        _ = try req.auth.require(User.self)
         
         let content = try req.content.decode(CreateRating.self)
         
@@ -70,8 +83,6 @@ struct RatingController: RouteCollection {
             rating.rating = content.rating
             rating.title = content.title
             rating.text = content.text
-            rating.productId = content.productId
-            rating.uploaderId = content.uploaderId
             
             return rating.update(on: req.db).flatMap { (_) -> EventLoopFuture<Response> in
                 return rating.encodeResponse(for: req)
@@ -80,6 +91,8 @@ struct RatingController: RouteCollection {
     }
     
     func deleteRating(_ req: Request) throws -> EventLoopFuture<Response> {
+        
+        _ = try req.auth.require(User.self)
         
         let rating = Rating.find(req.parameters.get("id"), on: req.db)
         

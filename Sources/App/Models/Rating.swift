@@ -17,9 +17,6 @@ final class Rating: Model, Content {
     @ID(custom: "id", generatedBy: .database)
     var id: Int?
     
-    @Field(key: "productId")
-    var productId: Int
-    
     @Field(key: "rating")
     var rating: Int
     
@@ -28,15 +25,40 @@ final class Rating: Model, Content {
     
     @Field(key: "title")
     var title: String
-    
-    @Field(key: "uploaderId")
-    var uploaderId: Int
-    
+        
     @Timestamp(key: "createdAt", on: .create, format: .unix)
     var createdAt: Date?
+    
+    @Parent(key: "uploaderId")
+    var user: User
+    
+    @Parent(key: "productId")
+    var product: Product
     
     init() {
         
     }
     
+}
+
+extension Rating {
+    struct Migration: Fluent.Migration {
+        var name: String { "CreateRating" }
+
+        func prepare(on database: Database) -> EventLoopFuture<Void> {
+            database.schema("rating")
+                .field("id", .int, .identifier(auto: true))
+                .field("productId", .int, .required, .references("product", "id"))
+                .field("uploaderId", .int, .required, .references("user", "id"))
+                .field("rating", .int, .required)
+                .field("text", .string, .required)
+                .field("title", .string, .required)
+                .field("createdAt", .date, .required)
+                .create()
+        }
+
+        func revert(on database: Database) -> EventLoopFuture<Void> {
+            database.schema("rating").delete()
+        }
+    }
 }
