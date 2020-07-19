@@ -15,32 +15,9 @@ func routes(_ app: Application) throws {
     try app.register(collection: ProductController())
     try app.register(collection: RatingController())
     try app.register(collection: UserController())
+    try app.register(collection: PagesController())
     
-    app.group("pages") { pages in
-        
-        pages.group("products") { products in
-            
-            //afterid
-            products.get() { req -> String  in
-                return "products for id"
-            }
-            
-            //afterId
-            products.get("foruser") { req -> String in
-                return "products for user id"
-            }
-        }
-        
-        pages.group("ratings") { ratings in
-            
-            //afterId
-            ratings.get("product", ":id") { req -> String in
-                return "Rating for productId"
-            }
-            //afterId
-            ratings.get("user", ":id") { req -> String in
-                return "rating for userId"
-            }
-        }
+    for route in app.routes.all {
+        print("\(route)\n")
     }
 }

@@ -32,6 +32,9 @@ final class Product: Model, Content {
     @Field(key: "uploaderId")
     var uploaderId: Int
     
+    @Field(key: "barcode")
+    var barcode: String
+    
     @Timestamp(key: "createdAt", on: .create, format: .unix)
     var createdAt: Date?
     
@@ -62,5 +65,30 @@ extension Product {
         func revert(on database: Database) -> EventLoopFuture<Void> {
             database.schema("product").delete()
         }
+    }
+    
+    struct AddBarcodeFieldMigration: Fluent.Migration {
+        var name: String { "AddBarcodeField" }
+        
+        func prepare(on database: Database) -> EventLoopFuture<Void> {
+            database.schema("product")
+                .field("barcode", .string, .required)
+                .update()
+        }
+        
+        func revert(on database: Database) -> EventLoopFuture<Void> {
+            database.schema("product")
+                .deleteField("barcode")
+                .update()
+        }
+    }
+}
+
+extension Product {
+    struct GetProductPage: Content {
+        let afterId: Int?
+        let searchText: String?
+        let pageSize: Int
+        let userId: Int?
     }
 }

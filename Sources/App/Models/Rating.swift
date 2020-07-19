@@ -62,3 +62,11 @@ extension Rating {
         }
     }
 }
+
+extension Rating {
+    struct GetRatingPage: Content {
+        let id: Int
+        let afterId: Int?
+        let pageSize: Int
+    }
+}

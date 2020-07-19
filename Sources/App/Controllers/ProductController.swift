@@ -20,6 +20,7 @@ struct ProductController: RouteCollection {
         let imageUrl: String?
         let producer: String
         let uploaderId: Int
+        let barcode: String
     }
     
     func boot(routes: RoutesBuilder) throws {
@@ -72,6 +73,7 @@ struct ProductController: RouteCollection {
         product.description = content.description
         product.imageUrl = content.imageUrl
         product.producer = content.producer
+        product.barcode = content.barcode
         product.uploaderId = content.uploaderId
         
         return product.create(on: req.db).flatMap { (_) -> EventLoopFuture<Response> in
@@ -92,6 +94,7 @@ struct ProductController: RouteCollection {
             product.description = content.description
             product.imageUrl = content.imageUrl
             product.producer = content.producer
+            product.barcode = content.barcode
             product.uploaderId = content.uploaderId
             return product.update(on: req.db).flatMap { (_) -> EventLoopFuture<Response> in
                 return product.encodeResponse(for: req)

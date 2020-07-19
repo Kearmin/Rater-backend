@@ -47,30 +47,30 @@ struct UserController: RouteCollection {
         return req.eventLoop.makeSucceededFuture(user)
     }
     
-    func login(_ req: Request) throws -> EventLoopFuture<UserToken> {
+    func login(_ req: Request) throws -> EventLoopFuture<Response> {
         
         let user = try req.auth.require(User.self)
         let token = try user.generateToken()
         return token.save(on: req.db)
             .map { token }
+            .encodeResponse(for: req)
     }
     
     func logout(_ req: Request) throws -> EventLoopFuture<Response> {
         
         let user = try req.auth.require(User.self)
         
-        let _ =  UserToken.query(on: req.db).all().flatMap { tokens -> EventLoopFuture<Response> in
-            
-            guard let token = tokens.first(where: { $0.$user.id == user.id }) else {
-                return req.eventLoop.makeFailedFuture(Abort(.internalServerError))
-            }
-            
-            return token.delete(force: true, on: req.db).map {
-                HTTPResponseStatus.ok
-            }.encodeResponse(for: req)
+        return UserToken.query(on: req.db)
+            .join(User.self, on: \UserToken.$user.$id == \User.$id)
+            .filter(User.self, \.$id == user.id!)
+            .first()
+            .unwrap(or: Abort(.internalServerError))
+            .flatMap { token -> EventLoopFuture<Response> in
+                
+                return token.delete(force: true, on: req.db)
+                    .map {
+                        HTTPResponseStatus.ok
+                }.encodeResponse(for: req)
         }
-        
-       return req.eventLoop.makeSucceededFuture(HTTPResponseStatus.ok).encodeResponse(for: req)
     }
-    
 }

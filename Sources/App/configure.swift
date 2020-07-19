@@ -10,6 +10,7 @@ public func configure(_ app: Application) throws {
     app.migrations.add(Product.Migration())
     app.migrations.add(User.Migration())
     app.migrations.add(Rating.Migration())
+    app.migrations.add(Product.AddBarcodeFieldMigration())
     
     app.databases.use(.mysql(hostname: "127.0.0.1", username: "root", password: "1234", database: "Rater", tlsConfiguration: .forClient(certificateVerification: .none)), as: .mysql)
     
