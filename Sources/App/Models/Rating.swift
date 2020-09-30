@@ -39,6 +39,13 @@ final class Rating: Model, Content {
         
     }
     
+    init(rating: Int, text: String, title: String, userId: Int, productId: Int) {
+        self.rating = rating
+        self.text = text
+        self.title = title
+        self.$user.id = userId
+        self.$product.id = productId
+    }
 }
 
 extension Rating {

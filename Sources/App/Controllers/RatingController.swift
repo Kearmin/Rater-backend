@@ -60,17 +60,38 @@ struct RatingController: RouteCollection {
         rating.text = content.text
         //rating.productId = content.productId
         //rating.uploaderId = content.uploaderId
+        rating.$product.id = content.productId
+        rating.$user.id = content.uploaderId
         
-        let productFuture =  Product.query(on: req.db).filter(\.$id == content.productId).first().unwrap(or: Abort(.badRequest))
-        let userFuture = User.query(on: req.db).filter(\.$id == content.uploaderId).first().unwrap(or: Abort(.badRequest))
+        return rating.save(on: req.db)
+            .flatMap {
+                
+                Rating.query(on: req.db)
+                    .with(\.$user)
+                    .with(\.$product)
+                    .filter(\.$id == rating.id!)
+                    .first()
+                    .unwrap(or: Abort(.internalServerError))
+                }
+            .flatMapThrowing { rating in
+                try RatingDTO(id: rating.requireID(), rating: rating.rating, text: rating.text, title: rating.title, userName: rating.user.accountName, userId: rating.user.requireID())
+            }
+            .encodeResponse(for: req)
+                
+//                try RatingDTO(id: rating.requireID(), rating: rating.rating, text: rating.text, title: rating.title, userName: rating.user.accountName, userId: rating.user.requireID())
+           // }
+  //          .encodeResponse(for: req)
         
-        return productFuture.and(userFuture).flatMap { product, user -> EventLoopFuture<Response> in
-            
-            rating.$user.id = user.id!
-            return product.$ratings.create(rating, on: req.db).map{
-                rating
-            }.encodeResponse(for: req)
-        }
+//        let productFuture =  Product.query(on: req.db).filter(\.$id == content.productId).first().unwrap(or: Abort(.badRequest))
+//        let userFuture = User.query(on: req.db).filter(\.$id == content.uploaderId).first().unwrap(or: Abort(.badRequest))
+//
+//        return productFuture.and(userFuture).flatMap { product, user -> EventLoopFuture<Response> in
+//
+//            rating.$user.id = user.id!
+//            return product.$ratings.create(rating, on: req.db).map{
+//                rating
+//            }.encodeResponse(for: req)
+//        }
     }
     
     func updateRating(_ req: Request) throws -> EventLoopFuture<Response> {

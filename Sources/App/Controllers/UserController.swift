@@ -24,7 +24,7 @@ struct UserController: RouteCollection {
             tokenProtected.get("me", use: me)
             tokenProtected.post("logout", use: logout)
         }
-
+        
     }
     
     func createUser(_ req: Request) throws -> EventLoopFuture<User> {
@@ -39,7 +39,7 @@ struct UserController: RouteCollection {
             user
         }
     }
-
+    
     func me(_ req: Request) throws -> EventLoopFuture<User> {
         
         let user = try req.auth.require(User.self)
@@ -51,26 +51,36 @@ struct UserController: RouteCollection {
         
         let user = try req.auth.require(User.self)
         let token = try user.generateToken()
+
+        
         return token.save(on: req.db)
-            .map { token }
+            .flatMap {
+                UserToken.query(on: req.db)
+                    .with(\.$user)
+                    .filter(\.$id == token.id!)
+                    .first()
+                    .unwrap(or: Abort(.internalServerError))
+            }
+            .flatMapThrowing{ token in
+                try TokenDTO(id: token.requireID().uuidString, userId: token.user.requireID(), value: token.value)
+            }
             .encodeResponse(for: req)
-    }
+        }
     
     func logout(_ req: Request) throws -> EventLoopFuture<Response> {
         
         let user = try req.auth.require(User.self)
-        
+
         return UserToken.query(on: req.db)
-            .join(User.self, on: \UserToken.$user.$id == \User.$id)
-            .filter(User.self, \.$id == user.id!)
-            .first()
-            .unwrap(or: Abort(.internalServerError))
-            .flatMap { token -> EventLoopFuture<Response> in
-                
-                return token.delete(force: true, on: req.db)
-                    .map {
+            .with(\.$user)
+            .filter(\.$user.$id == user.id!)
+            .all()
+            .flatMap { tokens in
+                tokens.delete(force: true, on: req.db)
+                    .map { _ in
                         HTTPResponseStatus.ok
-                }.encodeResponse(for: req)
-        }
+                }
+            }
+            .encodeResponse(for: req)
     }
 }

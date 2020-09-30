@@ -45,19 +45,22 @@ struct ProductController: RouteCollection {
             throw Abort(.badRequest)
         }
         
-        let productFuture = Product.query(on: req.db)
+        return Product.query(on: req.db)
+            .with(\.$ratings, { ratings in
+                ratings.with(\.$user)
+            })
             .filter(\.$id == id)
             .first()
             .unwrap(or: Abort(.notFound))
+            .flatMapThrowing { product throws in
 
-        return productFuture.flatMap { product -> EventLoopFuture<Response> in
-
-            let ratings = product.$ratings.get(on: req.db)
-            
-            return productFuture.and(ratings).flatMap { (product, ratings) -> EventLoopFuture<Response> in
-                return product.encodeResponse(for: req)
+                return try ProductDetailDTO(id: product.requireID(), name: product.name, imageUrl: product.imageUrl, description: product.description, producer: product.description, uploaderId: product.uploaderId, barcode: product.barcode, createdAt: product.createdAt, ratings:
+                    product.ratings.map { rating in
+                        try RatingDTO(id: rating.requireID(), rating: rating.rating, text: rating.text, title: rating.title, userName: rating.user.accountName, userId: rating.user.requireID())
+                    }
+                , average: product.ratings.map{ $0.rating }.average)
             }
-        }
+            .encodeResponse(for: req)
     }
     
     func createProduct(_ req: Request) throws -> EventLoopFuture<Response> {
@@ -112,6 +115,20 @@ struct ProductController: RouteCollection {
             product.delete(force: true, on: req.db).flatMap { () -> EventLoopFuture<Response> in
                 return HTTPResponseStatus.accepted.encodeResponse(for: req)
             }
+        }
+    }
+}
+
+
+extension Array where Element: BinaryInteger {
+
+    /// The average value of all the items in the array
+    var average: Double {
+        if self.isEmpty {
+            return 0.0
+        } else {
+            let sum = self.reduce(0, +)
+            return Double(sum) / Double(self.count)
         }
     }
 }

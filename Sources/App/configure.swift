@@ -5,7 +5,10 @@ import FluentMySQLDriver
 public func configure(_ app: Application) throws {
     // uncomment to serve files from /Public folder
     // app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
-
+    let corsConfiguration = CORSMiddleware.Configuration(allowedOrigin: .all, allowedMethods: [.GET, .PUT, .POST, .DELETE, .OPTIONS], allowedHeaders: [.accept, .authorization, .contentType ,.origin, .xRequestedWith, .userAgent, .accessControlAllowOrigin])
+    let cors = CORSMiddleware(configuration: corsConfiguration)
+    app.middleware.use(cors)
+    
     app.migrations.add(UserToken.Migration())
     app.migrations.add(Product.Migration())
     app.migrations.add(User.Migration())
