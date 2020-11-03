@@ -23,6 +23,7 @@ struct UserController: RouteCollection {
             let tokenProtected = route.grouped(UserToken.authenticator())
             tokenProtected.get("me", use: me)
             tokenProtected.post("logout", use: logout)
+            tokenProtected.delete(":id", use: deleteUser)
         }
         
     }
@@ -40,6 +41,18 @@ struct UserController: RouteCollection {
         }
     }
     
+    func deleteUser(_ req: Request) throws -> EventLoopFuture<Response> {
+        
+        _ = try req.auth.require(User.self)
+        
+        let user = User.find(req.parameters.get("id"), on: req.db)
+        return user.unwrap(or: Abort(.notFound)).flatMap { (user) -> EventLoopFuture<Response> in
+            user.delete(force: true, on: req.db).flatMap { () -> EventLoopFuture<Response> in
+                return HTTPResponseStatus.accepted.encodeResponse(for: req)
+            }
+        }
+    }
+    
     func me(_ req: Request) throws -> EventLoopFuture<User> {
         
         let user = try req.auth.require(User.self)
@@ -51,7 +64,6 @@ struct UserController: RouteCollection {
         
         let user = try req.auth.require(User.self)
         let token = try user.generateToken()
-
         
         return token.save(on: req.db)
             .flatMap {
@@ -71,7 +83,7 @@ struct UserController: RouteCollection {
         
         let user = try req.auth.require(User.self)
 
-        return UserToken.query(on: req.db)
+        return UserToken.query(on: req.db) //6c04uaFbcZ3r5kDEZGhymA==  //QthN3ltn7GmjbRA/NPnlLA==
             .with(\.$user)
             .filter(\.$user.$id == user.id!)
             .all()

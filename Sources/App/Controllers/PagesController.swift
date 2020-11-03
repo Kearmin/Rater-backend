@@ -11,7 +11,7 @@ import Fluent
 import FluentMySQLDriver
 
 struct PagesController: RouteCollection {
-
+    
     func boot(routes: RoutesBuilder) throws {
         
         routes.group("pages") { route in
@@ -21,7 +21,6 @@ struct PagesController: RouteCollection {
             route.get("products", use: getProductPage)
             route.get("ratingsForProduct", use: getRatingPageForProduct)
             route.get("ratingsForUser", use: getRatingPageForUser)
-            
         }
     }
     
@@ -35,7 +34,7 @@ struct PagesController: RouteCollection {
         if let afterId = content.afterId {
             query.filter(\.$id > afterId)
         }
-
+        
         if let userId = content.userId {
             query.filter(\.$id == userId)
         }
@@ -43,7 +42,7 @@ struct PagesController: RouteCollection {
         if let searchText = content.searchText {
             query.group(.or) { group in
                 group.filter(\.$accountName ~~ searchText)
-                     .filter(\.$id == Int(searchText) ?? -1)
+                    .filter(\.$id == Int(searchText) ?? -1)
             }
         }
         
@@ -59,7 +58,7 @@ struct PagesController: RouteCollection {
             .with(\.$user)
             .filter(\.$user.$id == content.id)
             .limit(content.pageSize)
-            
+        
         
         if let afterId = content.afterId {
             query.filter(\.$id > afterId)
@@ -79,6 +78,8 @@ struct PagesController: RouteCollection {
         let content = try req.query.decode(Product.GetProductPage.self)
         
         let query = Rating.query(on: req.db)
+            .join(Product.self, on: \Rating.$product.$id == \Product.$id, method: .inner)
+            .join(User.self, on: \Rating.$user.$id == \User.$id, method: .inner)
             .with(\.$product)
             .with(\.$user)
         
@@ -90,12 +91,14 @@ struct PagesController: RouteCollection {
             query.filter(\.$user.$id == userId)
         }
         
-        if let searchText = content.searchText {
+        if let searchText = content.searchText, searchText != "" {
             query.group(.or) { group in
-                    group.filter(Product.self, \.$name ~~ searchText)
-                         .filter(Product.self, \.$producer ~~ searchText)
-                         .filter(Product.self, \.$barcode ~~ searchText)
-                         .filter(Product.self, \.$id == Int(searchText) ?? -1)
+                group.filter(Product.self, \.$name ~~ searchText)
+                    .filter(Product.self, \.$producer ~~ searchText)
+                    .filter(Product.self, \.$barcode ~~ searchText)
+                    .filter(\.$text ~~ searchText)
+                    .filter(\.$title ~~ searchText)
+                    .filter(Product.self, \.$id == Int(searchText) ?? -1)
             }
         }
         
@@ -109,7 +112,7 @@ struct PagesController: RouteCollection {
         let query = Rating.query(on: req.db)
             .join(Product.self, on: \Rating.$product.$id == \Product.$id)
             .filter(Product.self, \.$id == content.id)
-            
+        
         
         if let afterId = content.afterId {
             query.filter(\.$id > afterId)
@@ -137,8 +140,8 @@ struct PagesController: RouteCollection {
         if let searchText = content.searchText {
             query.group(.or) { group in
                 group.filter(\.$name ~~ searchText)
-                     .filter(\.$producer ~~ searchText)
-                     .filter(\.$barcode ~~ searchText)
+                    .filter(\.$producer ~~ searchText)
+                    .filter(\.$barcode ~~ searchText)
             }
         }
         

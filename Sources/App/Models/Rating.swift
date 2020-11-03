@@ -25,7 +25,7 @@ final class Rating: Model, Content {
     
     @Field(key: "title")
     var title: String
-        
+    
     @Timestamp(key: "createdAt", on: .create, format: .unix)
     var createdAt: Date?
     
@@ -51,7 +51,7 @@ final class Rating: Model, Content {
 extension Rating {
     struct Migration: Fluent.Migration {
         var name: String { "CreateRating" }
-
+        
         func prepare(on database: Database) -> EventLoopFuture<Void> {
             database.schema("rating")
                 .field("id", .int, .identifier(auto: true))
@@ -63,11 +63,30 @@ extension Rating {
                 .field("createdAt", .date, .required)
                 .create()
         }
-
+        
         func revert(on database: Database) -> EventLoopFuture<Void> {
             database.schema("rating").delete()
         }
     }
+    
+    struct AddForeignKeyMigration: Fluent.Migration {
+        
+        var name: String { "AddForeignKeyMigration" }
+        
+        func prepare(on database: Database) -> EventLoopFuture<Void> {
+            database.schema("rating")
+                .foreignKey("uploaderId", references: "user", "id", onDelete: .cascade, onUpdate: .cascade, name: nil)
+                .foreignKey("productId", references: "product", "id", onDelete: .cascade, onUpdate: .cascade, name: nil)
+                .update()
+                
+        }
+        
+        func revert(on database: Database) -> EventLoopFuture<Void> {
+            database.schema("rating")
+                .update()
+        }
+    }
+    
 }
 
 extension Rating {
