@@ -12,6 +12,7 @@ struct UserRatingsDTO: Content {
     let id: Int
     let productImageUrl: String?
     let productName: String
+    let title: String
     let text: String
     let rating: Int
 }

@@ -8,6 +8,7 @@
 import Foundation
 import Fluent
 import FluentMySQLDriver
+import SQLKit
 import Vapor
 
 final class User: Model, Content, Authenticatable {
@@ -22,6 +23,12 @@ final class User: Model, Content, Authenticatable {
     
     @Field(key: "password")
     var password: String
+    
+    @Field(key: "isAdmin")
+    var isAdmin: Bool
+    
+    @Children(for: \.$user)
+    var favourites: [Favourite]
     
     init() {
         
@@ -69,8 +76,23 @@ extension User {
             database.schema("user").delete()
         }
     }
+    
+    struct AddAdminToUser: Fluent.Migration {
+        var name: String { "AddAdminToUser" }
+        
+        func prepare(on database: Database) -> EventLoopFuture<Void> {
+            database.schema("user")
+                .field("isAdmin", .bool, .required, .sql(SQLColumnConstraintAlgorithm.default(false)))
+                .update()
+        }
+        
+        func revert(on database: Database) -> EventLoopFuture<Void> {
+            database.schema("user")
+                .deleteField("isAdmin")
+                .update()
+        }
+    }
 }
-
 
 extension User: ModelAuthenticatable {
     static let usernameKey = \User.$accountName

@@ -18,6 +18,6 @@ func routes(_ app: Application) throws {
     try app.register(collection: PagesController())
     
     for route in app.routes.all {
-        print("\(route)\n")
+        print("\(route)")
     }
 }

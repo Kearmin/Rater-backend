@@ -19,9 +19,11 @@ struct UserController: RouteCollection {
             
             let userProtected = route.grouped(User.authenticator())
             userProtected.post("login", use: login)
+            userProtected.post("adminLogin", use: adminLogin)
             
             let tokenProtected = route.grouped(UserToken.authenticator())
             tokenProtected.get("me", use: me)
+            tokenProtected.get(":id", use: getUser)
             tokenProtected.post("logout", use: logout)
             tokenProtected.delete(":id", use: deleteUser)
         }
@@ -39,6 +41,15 @@ struct UserController: RouteCollection {
         return user.create(on: req.db).map {
             user
         }
+    }
+    
+    func getUser(_ req: Request) throws -> EventLoopFuture<Response> {
+        
+        _ = try req.auth.require(User.self)
+        
+        return User.find(req.parameters.get("id"), on: req.db)
+                .unwrap(or: Abort(.notFound))
+                .encodeResponse(for: req)
     }
     
     func deleteUser(_ req: Request) throws -> EventLoopFuture<Response> {
@@ -60,24 +71,40 @@ struct UserController: RouteCollection {
         return req.eventLoop.makeSucceededFuture(user)
     }
     
-    func login(_ req: Request) throws -> EventLoopFuture<Response> {
+    private func handleLogin(_ req: Request, checkAdmin: Bool) throws -> EventLoopFuture<Response> {
         
-        let user = try req.auth.require(User.self)
+        var user: User!
+        do {
+            user = try req.auth.require(User.self)
+        } catch {
+            throw Abort(.unauthorized, reason: "Username or password is invalid")
+        }
+                
         let token = try user.generateToken()
         
-        return token.save(on: req.db)
-            .flatMap {
-                UserToken.query(on: req.db)
-                    .with(\.$user)
-                    .filter(\.$id == token.id!)
-                    .first()
-                    .unwrap(or: Abort(.internalServerError))
+        if checkAdmin {
+            guard user.isAdmin == true else {
+                throw Abort(.unauthorized, reason: "Not admin account")
             }
-            .flatMapThrowing{ token in
-                try TokenDTO(id: token.requireID().uuidString, userId: token.user.requireID(), value: token.value)
+        }
+
+        return token
+            .save(on: req.db)
+            .flatMapThrowing { () -> TokenDTO in
+                return try TokenDTO(id: token.requireID().uuidString, userId: token.$user.id, value: token.value)
             }
             .encodeResponse(for: req)
-        }
+    }
+    
+    func login(_ req: Request) throws -> EventLoopFuture<Response> {
+        
+        return try handleLogin(req, checkAdmin: false)
+    }
+    
+    func adminLogin(_ req: Request) throws -> EventLoopFuture<Response> {
+        
+        return try handleLogin(req, checkAdmin: true)
+    }
     
     func logout(_ req: Request) throws -> EventLoopFuture<Response> {
         

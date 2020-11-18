@@ -67,7 +67,7 @@ struct PagesController: RouteCollection {
         return query.all().flatMapThrowing { ratings in
             
             try ratings.map { rating in
-                try UserRatingsDTO(id: rating.requireID(), productImageUrl: rating.product.imageUrl, productName: rating.product.name, text: rating.text, rating: rating.rating)
+                try UserRatingsDTO(id: rating.requireID(), productImageUrl: rating.product.imageUrl, productName: rating.product.name, title: rating.title, text: rating.text, rating: rating.rating)
             }
         }
         .encodeResponse(for: req)
@@ -145,6 +145,21 @@ struct PagesController: RouteCollection {
             }
         }
         
-        return query.limit(content.pageSize).all().encodeResponse(for: req)
+        return query.limit(content.pageSize).all()
+            .flatMapThrowing { (products) -> EventLoopFuture<[ProductPageDTO]> in
+                let uploaderIds = products.map { $0.uploaderId }
+
+                let q = User.query(on: req.db)
+                    .filter(\.$id ~~ uploaderIds)
+                    .all()
+                    .flatMapThrowing { users -> [ProductPageDTO] in
+                        try products.compactMap { product throws -> ProductPageDTO? in
+                            guard let user = users.first (where: { $0.id == product.uploaderId }) else { return nil }
+                            return try ProductPageDTO(id: product.requireID(), name: product.name, imageUrl: product.imageUrl, description: product.description, producer: product.producer, uploaderId: user.requireID(), uploaderName: user.accountName)
+                        }
+                    }
+                return q
+            }
+            .encodeResponse(for: req)
     }
 }
